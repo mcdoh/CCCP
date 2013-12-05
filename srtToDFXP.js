@@ -6,24 +6,30 @@ var _ = require('underscore');
 var dfxpTemplate = fs.readFileSync('templates/dfxp.xml').toString();
 
 var args = process.argv;
-var srtFile = args.length > 2 ? args[2] : '';
+var srtDir = args.length > 2 ? args[2] : '';
 
-if (srtFile) {
-	if (srtFile.indexOf('.srt') === -1) {
-		console.log('Expected .srt file extension');
-		console.log(srtFile);
-	}
-	else {
-		fs.readFile(srtFile, function(err, data) {
-			if (err) {
-				console.log('ERROR READING FILE');
-				console.log(err);
-			}
-			else {
+if (srtDir) {
+	if (fs.existsSync(srtDir)) {
+		var filenames = fs.readdirSync(srtDir);
+		filenames = _.filter(filenames, function(filename) { return filename.indexOf('.srt') > 0; });
+		filenames = _.map(filenames, function(filename) { return srtDir + '/' + filename; });
+
+		_.each(filenames, function(srtFile) {
+			var infile = fs.readFileSync(srtFile, 'utf8');
+
+			if (infile) {
+				console.log(srtFile);
 				var dfxpFilename = srtFile.replace('.srt','.dfxp');
 
-				// standardize newlines and remove the utf-8 bom if found
-				var srt = data.toString().replace(/(\r\n)/g, '\n').replace(/\r/g, '\n').replace(/^\uFEFF/, '');;
+				// remove the utf-8 bom if found
+				var srt = infile.toString().replace(/^\uFEFF/, '');
+
+				// standardize newlines
+				srt = srt.replace(/(\r\n)/g, '\n').replace(/\r/g, '\n');
+
+				// found a file that had three newlines in a row
+				srt = srt.replace(/(\n\n\n)/g, '\n\n');
+
 				var blocks = srt.split('\n\n');
 				var captions = []
 
@@ -53,14 +59,15 @@ if (srtFile) {
 					}
 				}
 
-				fs.writeFile(dfxpFilename, _.template(dfxpTemplate, {captions: captions}), function(err) {
-					if (err) {
-						console.log('ERROR WRITING FILE');
-						console.log(err);
-					}
-				});
+				fs.writeFileSync(dfxpFilename, _.template(dfxpTemplate, {captions: captions}), 'utf8');
+			}
+			else {
+				console.log('ERROR READING FILE: ' + srtFile);
 			}
 		});
+	}
+	else {
+		console.log('ERROR: PATH DOES NOT EXIST');
 	}
 }
 else {

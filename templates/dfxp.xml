@@ -19,7 +19,7 @@
 		</layout>
 	</head>
 	<body timeContainer="par">
-		<div region="default">
+		<div xml:lang="en" region="default">
 		<% _.each(captions, function(caption) { %>
 			<p id="<%= caption.id %>" begin="<%= caption.begin %>" end="<%= caption.end %>"><%= caption.text %></p>
 		<% }) %>
