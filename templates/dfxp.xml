@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<tt xml:lang="en"
+	xmlns="http://www.w3.org/ns/ttml"
+	xmlns:tts="http://www.w3.org/ns/ttml#styling"
+	xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+	<head>
+		<metadata>
+			<ttm:title>Caption Test</ttm:title>
+			<ttm:desc></ttm:desc>
+			<ttm:copyright>Copyright (C) 2013 RLJ Entertainment.</ttm:copyright>
+		</metadata>
+		<styling>
+			<style xml:id="s1" tts:backgroundColor="transparent"  tts:textAlign='center' tts:extent="5ex 1em"/>
+		</styling>
+		<layout>
+			<region xml:id="default" tts:textAlign='center' tts:backgroundColor="black" tts:color="white" tts:padding='2px'  />
+			<region xml:id="overlay" tts:textAlign='center' tts:origin="0px 0px" tts:extent="320px 240px" tts:opacity='0.9'
+				tts:backgroundColor="white"  tts:color='black' tts:fontSize='150%'/>
+		</layout>
+	</head>
+	<body timeContainer="par">
+		<div region="default">
+		<% _.each(captions, function(caption) { %>
+			<p id="<%= caption.id %>" begin="<%= caption.begin %>" end="<%= caption.end %>"><%= caption.text %></p>
+		<% }) %>
+		</div>
+	</body>
+</tt>
