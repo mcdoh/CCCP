@@ -6,6 +6,7 @@
     "start": "node recap.js"
   },
   "dependencies": {
-    "underscore": "*"
+    "underscore": "*",
+    "htmlparser": "*"
   }
 }

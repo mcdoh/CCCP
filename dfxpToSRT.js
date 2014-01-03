@@ -2,7 +2,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 // TODO: support capitalized extensions
-// TODO: support etensions in path (e.g. /var/my.srts/myfile.srt)
+// TODO: support etensions in path (e.g. /var/my.dfxps/myfile.dfxp)
 // TODO: add better logging support
 // TODO: modularize to load as a library
 // TODO: separate file parsing and file construction
@@ -15,59 +15,94 @@
 var _ = require('underscore');
 var fs = require('fs');
 var path = require('path');
+var htmlparser = require('htmlparser');
 
-var SOURCE_EXTENSION = '.srt';
-var TARGET_EXTENSION = '.dfxp';
-var DFXP_TEMPLATE = fs.readFileSync('templates/dfxp.tmpl').toString();
+var SOURCE_EXTENSION = '.dfxp';
+var TARGET_EXTENSION = '.srt';
+var SRT_TEMPLATE = fs.readFileSync('templates/srt.tmpl').toString();
 
 var args = process.argv;
 var sourceDir = args.length > 2 ? args[2] : '';
 var targetDir = args.length > 3 ? args[3] : '';
 
-var srt2dfxp = function(infile, outfile) {
+// remove all line breaks
+var oneliner = function(lines) {
+	return lines.replace(/\r/g, '').replace(/\n/g, '');
+};
+
+// reduce all whitespace multiples
+var tightenUp = function(spacedOut) {
+	return spacedOut.replace(/\s+/g, ' ');
+};
+
+// remove whitespace between tags
+var touching = function(untouched) {
+	return untouched.replace(/ </g, '<').replace(/> /g, '>');
+};
+
+// it's easier to search and replace breaks than to parse the xml
+var breakdown = function(breaks) {
+	return breaks.replace(/<br\s*\/>/g, '\n');
+};
+
+// remove any extraneous spaces
+var spaceCadet = function(spacey) {
+	return spacey.trim().replace(/  /g, ' ');
+};
+
+// handle inner tags such as 'text text <span tts:fontStyle="italic">fancy text</span> text'
+var reduction = function(memo, node) {
+	if (node.type === 'text') {
+		return memo + node.data;
+	}
+	else if (node.attribs['tts:fontStyle']) {
+		switch (node.attribs['tts:fontStyle']) {
+			case 'italic':
+				return memo + ' <i>' + _.reduce(node.children, reduction, '') + '</i> ';
+			case 'bold':
+				return memo + ' <b>' + _.reduce(node.children, reduction, '') + '</b> ';
+		}
+	}
+};
+
+var dfxp2srt = function(infile, outfile) {
 	var sourceContents = fs.readFileSync(infile, 'utf8');
 
 	if (sourceContents) {
-//		console.log(infile + ' -> ' + outfile);
 
 		// remove the utf-8 bom if found
-		var srt = sourceContents.toString().replace(/^\uFEFF/, '');
+		var dfxp = sourceContents.toString().replace(/^\uFEFF/, '');
 
-		// standardize newlines
-		srt = srt.replace(/(\r\n)/g, '\n').replace(/\r/g, '\n');
+		// clean up the source
+		dfxp = breakdown(touching(tightenUp(oneliner(dfxp))));
 
-		// found a file that had three newlines in a row
-		srt = srt.replace(/(\n\n\n)/g, '\n\n');
-
-		var blocks = srt.split('\n\n');
-		var captions = [];
-
-		var blocksLength = blocks.length;
-		for (var i=0; i<blocksLength; i++) {
-			if (blocks[i]) {
-				var lines = blocks[i].split('\n');
-
-				var linesLength = lines.length;
-				var caption = {};
-				var captionID = parseInt(lines[0], 10);
-				var captionTimes = lines[1].split(' ');
-				var captionBegin = captionTimes[0].replace(',','.');
-				var captionEnd = captionTimes[2].replace(',','.');
-				var captionText = lines[2];
-				for (var k=3; k<linesLength; k++) {
-					captionText += '<br/>' + lines[k];
-				}
-
-				caption.id = captionID;
-				caption.begin = captionBegin;
-				caption.end = captionEnd;
-				caption.text = captionText;
-
-				captions.push(caption);
+		var handler = new htmlparser.DefaultHandler(function(err, res) {
+			if (err) {
+				console.log(err);
 			}
-		}
+			else {
+				var nodes = res[0].children[1].children[0].children;
 
-		fs.writeFileSync(outfile, _.template(DFXP_TEMPLATE, {captions: captions}), 'utf8');
+				var captions = _.map(nodes, function(node, i) {
+					var caption = {};
+
+					caption.id = i + 1;
+					caption.begin = node.attribs.begin.replace('.', ',');
+					caption.end = node.attribs.end.replace('.', ',');
+					caption.text = _.reduce(node.children, reduction, '');
+
+					// clean up extra spacing from our <i> and <b> tags
+					caption.text = spaceCadet(caption.text);
+
+					return caption;
+				});
+
+				fs.writeFileSync(outfile, _.template(SRT_TEMPLATE, {captions: captions}), 'utf8');
+			}
+		});
+
+		var parser = new htmlparser.Parser(handler);
+		parser.parseComplete(dfxp);
 	}
 	else {
 		console.log('ERROR READING FILE: ' + infile);
@@ -98,7 +133,7 @@ var parseDir = function(source, destination) {
 			var outfile = path.join(destination, fileName.replace(SOURCE_EXTENSION, TARGET_EXTENSION));
 
 			try {
-				srt2dfxp(infile, outfile);
+				dfxp2srt(infile, outfile);
 			}
 			catch(e) {
 				console.log('ERROR CONVERTING FILE');
@@ -132,11 +167,11 @@ if (sourceDir) {
 	}
 	else {
 		console.log('No target directory specified');
-		console.log('Usage: ./srtToDFXP.js <source dir> <target dir>');
+		console.log('Usage: ./dfxpToSRT.js <source dir> <target dir>');
 	}
 }
 else {
 	console.log('No source directory specified');
-	console.log('Usage: ./srtToDFXP.js <source dir> <target dir>');
+	console.log('Usage: ./dfxpToSRT.js <source dir> <target dir>');
 }
 
