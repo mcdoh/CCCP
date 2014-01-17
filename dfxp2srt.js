@@ -25,6 +25,8 @@ var args = process.argv;
 var sourceDir = args.length > 2 ? args[2] : '';
 var targetDir = args.length > 3 ? args[3] : '';
 
+var specialCharacters = JSON.parse(fs.readFileSync('specialCharacters.json').toString());
+
 // remove all line breaks
 var oneliner = function(lines) {
 	return lines.replace(/\r/g, '').replace(/\n/g, '');
@@ -43,6 +45,18 @@ var touching = function(untouched) {
 // it's easier to search and replace breaks than to parse the xml
 var breakdown = function(breaks) {
 	return breaks.replace(/<br\s*\/>/g, '\n');
+};
+
+// convert special characters
+var unspecial = function(snowflakes) {
+	_.each(specialCharacters, function(special) {
+		if (special.numberCode && special.glyph) {
+			var rx = new RegExp(special.numberCode,'g');
+			snowflakes = snowflakes.replace(rx, special.glyph);
+		}
+	});
+
+	return snowflakes;
 };
 
 // remove any extraneous spaces
@@ -74,7 +88,7 @@ var dfxp2srt = function(infile, outfile) {
 		var dfxp = sourceContents.toString().replace(/^\uFEFF/, '');
 
 		// clean up the source
-		dfxp = breakdown(touching(tightenUp(oneliner(dfxp))));
+		dfxp = unspecial(breakdown(touching(tightenUp(oneliner(dfxp)))));
 
 		var handler = new htmlparser.DefaultHandler(function(err, res) {
 			if (err) {

@@ -15,6 +15,7 @@
 var _ = require('underscore');
 var fs = require('fs');
 var path = require('path');
+var iconv = require('iconv-lite');
 
 var SOURCE_EXTENSION = '.srt';
 var TARGET_EXTENSION = '.dfxp';
@@ -25,19 +26,17 @@ var sourceDir = args.length > 2 ? args[2] : '';
 var targetDir = args.length > 3 ? args[3] : '';
 
 var srt2dfxp = function(infile, outfile) {
-	var sourceContents = fs.readFileSync(infile, 'utf8');
+	var sourceContents = iconv.decode(fs.readFileSync(infile), 'latin1');
 
 	if (sourceContents) {
-//		console.log(infile + ' -> ' + outfile);
-
 		// remove the utf-8 bom if found
-		var srt = sourceContents.toString().replace(/^\uFEFF/, '');
+		var srt = sourceContents.replace(/^\uFEFF/, '');
 
 		// standardize newlines
 		srt = srt.replace(/(\r\n)/g, '\n').replace(/\r/g, '\n');
 
-		// found a file that had three newlines in a row
-		srt = srt.replace(/(\n\n\n)/g, '\n\n');
+		// found a file that had three newlines in a row (match 3 or more, replace with 2)
+		srt = srt.replace(/(\n{3,})/g, '\n\n');
 
 		var blocks = srt.split('\n\n');
 		var captions = [];
