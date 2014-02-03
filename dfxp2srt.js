@@ -61,7 +61,7 @@ var unspecial = function(snowflakes) {
 
 // remove any extraneous spaces
 var spaceCadet = function(spacey) {
-	return spacey.trim().replace(/  /g, ' ');
+	return spacey.trim().replace(/\s+/g, ' ').replace(/^\s/g, '');
 };
 
 // handle inner tags such as 'text text <span tts:fontStyle="italic">fancy text</span> text'
