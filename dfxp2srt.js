@@ -17,7 +17,7 @@ var fs = require('fs');
 var path = require('path');
 var htmlparser = require('htmlparser');
 
-var SOURCE_EXTENSION = '.dfxp';
+var SOURCE_EXTENSIONS = [/\.dfxp$/i, /\.xml$/i]; // in regex format
 var TARGET_EXTENSION = '.srt';
 var SRT_TEMPLATE = fs.readFileSync('templates/srt.tmpl').toString();
 
@@ -61,7 +61,7 @@ var unspecial = function(snowflakes) {
 
 // remove any extraneous spaces
 var spaceCadet = function(spacey) {
-	return spacey.trim().replace(/\s+/g, ' ').replace(/^\s/g, '');
+	return spacey.trim().replace(/[^\S\n]+/g, ' ').replace(/^[^\S\n]/, ''); // not-not-whitespace or not-newline
 };
 
 // handle inner tags such as 'text text <span tts:fontStyle="italic">fancy text</span> text'
@@ -133,7 +133,11 @@ var parseDir = function(source, destination) {
 		var contents = fs.readdirSync(source);
 		var directoryNames = _.filter(contents, function(item) { return fs.statSync(path.join(source, item)).isDirectory(); });
 		var fileNames = _.filter(contents, function(item) { return fs.statSync(path.join(source, item)).isFile(); });
-		fileNames = _.filter(fileNames, function(fileName) { return fileName.indexOf(SOURCE_EXTENSION) !== -1; });
+		fileNames = _.filter(fileNames, function(fileName) { // any filenames...
+			return _.some(SOURCE_EXTENSIONS, function(ext) { // that match any of these file extensions
+				return fileName.search(ext) !== -1;
+			})
+		});
 
 		_.each(directoryNames, function(directoryName) {
 			var newSource = path.join(source, directoryName);
@@ -144,7 +148,7 @@ var parseDir = function(source, destination) {
 
 		_.each(fileNames, function(fileName) {
 			var infile = path.join(source, fileName);
-			var outfile = path.join(destination, fileName.replace(SOURCE_EXTENSION, TARGET_EXTENSION));
+			var outfile = path.join(destination, fileName.replace(_.find(SOURCE_EXTENSIONS, function(ext) { return fileName.search(ext) !== -1; }), TARGET_EXTENSION));
 
 			try {
 				dfxp2srt(infile, outfile);
